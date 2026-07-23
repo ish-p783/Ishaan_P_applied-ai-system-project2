@@ -1,0 +1,40 @@
+%% PawPal+ system architecture
+%% Shows how the layers connect: user interfaces on top, the logic layer
+%% (pawpal_system.py) in the middle, and the in-memory data model beneath.
+%% Rendered as a flowchart. Preview at https://mermaid.live
+
+flowchart TD
+    subgraph UI["Presentation Layer"]
+        WEB["Streamlit Web App<br/>(app.py)"]
+        CLI["CLI Demo<br/>(main.py)"]
+    end
+
+    subgraph LOGIC["Logic Layer — pawpal_system.py"]
+        SCHED["Scheduler<br/>sort · filter · detect_conflicts · generate_plan"]
+        OWNER["Owner<br/>name · minutes_available · pets"]
+        PET["Pet<br/>name · breed · tasks"]
+        TASK["Task<br/>priority · start_time · frequency · recurrence"]
+    end
+
+    subgraph TEST["Verification"]
+        TESTS["Test Suite<br/>(tests/)"]
+    end
+
+    %% User interfaces drive the Scheduler and Owner
+    WEB -->|"create / update"| OWNER
+    WEB -->|"sort, filter, plan"| SCHED
+    CLI -->|"demo data + plan"| SCHED
+
+    %% Logic-layer ownership: Owner has Pets, Pet has Tasks
+    OWNER -->|"owns 0..*"| PET
+    PET -->|"has 0..*"| TASK
+
+    %% Scheduler reads tasks THROUGH the Owner, never a Pet directly
+    SCHED -->|"owner.get_all_tasks()"| OWNER
+
+    %% Recurring tasks spawn their next occurrence
+    TASK -.->|"mark_complete() spawns next"| TASK
+
+    %% Tests exercise the logic layer
+    TESTS -.->|"asserts behavior"| SCHED
+    TESTS -.->|"asserts behavior"| TASK

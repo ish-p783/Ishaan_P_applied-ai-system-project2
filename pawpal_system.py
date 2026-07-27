@@ -125,6 +125,78 @@ class Pet:
 
 
 @dataclass
+class Message:
+    """One turn in a chat with the AI assistant.
+
+    role is "user" (the owner) or "assistant" (the AI). timestamp is a plain
+    ISO string so the whole thing serialises to JSON without special handling.
+    """
+
+    role: str
+    text: str
+    timestamp: str = ""
+
+    def to_dict(self) -> dict:
+        """Plain dict for JSON storage."""
+        return {"role": self.role, "text": self.text, "timestamp": self.timestamp}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Message":
+        """Rebuild a Message from the dict produced by to_dict()."""
+        return cls(
+            role=data.get("role", ""),
+            text=data.get("text", ""),
+            timestamp=data.get("timestamp", ""),
+        )
+
+
+@dataclass
+class Memory:
+    """What the AI assistant remembers about an owner across chats.
+
+    This is what makes the bot "personalized": it keeps the running chat
+    history plus a short list of durable preferences the owner has stated
+    (e.g. "Mochi hates dry food", "prefers morning walks"). Both are fed back
+    into future prompts so advice builds on past conversations. The whole
+    object round-trips to JSON so memory survives closing the app.
+    """
+
+    messages: list[Message] = field(default_factory=list)
+    preferences: list[str] = field(default_factory=list)
+
+    def add_message(self, role: str, text: str, timestamp: str = "") -> Message:
+        """Append a chat turn and return it."""
+        message = Message(role=role, text=text, timestamp=timestamp)
+        self.messages.append(message)
+        return message
+
+    def remember_preference(self, preference: str) -> None:
+        """Store a durable preference, skipping exact duplicates."""
+        preference = preference.strip()
+        if preference and preference not in self.preferences:
+            self.preferences.append(preference)
+
+    def recent(self, n: int = 6) -> list[Message]:
+        """Return the last n chat turns (all of them if there are fewer)."""
+        return self.messages[-n:]
+
+    def to_dict(self) -> dict:
+        """Plain dict for JSON storage."""
+        return {
+            "messages": [m.to_dict() for m in self.messages],
+            "preferences": list(self.preferences),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Memory":
+        """Rebuild a Memory from the dict produced by to_dict()."""
+        return cls(
+            messages=[Message.from_dict(m) for m in data.get("messages", [])],
+            preferences=list(data.get("preferences", [])),
+        )
+
+
+@dataclass
 class Owner:
     """Manages multiple pets and gives access to all their tasks."""
 
@@ -132,6 +204,7 @@ class Owner:
     minutes_available: int = 0  # daily care time, same unit as Task.duration_minutes
     preferences: str = ""
     pets: list[Pet] = field(default_factory=list)
+    memory: Memory = field(default_factory=Memory)  # the AI assistant's per-owner memory
 
     def add_pet(self, pet: Pet) -> None:
         """Add a pet to this owner."""

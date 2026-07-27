@@ -6,10 +6,35 @@ classDiagram
         +int minutes_available
         +str preferences
         +list~Pet~ pets
+        +Memory memory
         +add_pet(pet) None
         +remove_pet(pet) None
         +get_all_tasks() list~Task~
         +get_pending_tasks() list~Task~
+    }
+
+    class Message {
+        +str role
+        +str text
+        +str timestamp
+        +to_dict() dict
+        +from_dict(data) Message
+    }
+
+    class Memory {
+        +list~Message~ messages
+        +list~str~ preferences
+        +add_message(role, text) Message
+        +remember_preference(pref) None
+        +recent(n) list~Message~
+        +to_dict() dict
+        +from_dict(data) Memory
+    }
+
+    class PawPalAssistant {
+        +str memory_path
+        +is_configured() bool
+        +chat(owner, pet, message) ChatResult
     }
 
     class Pet {
@@ -58,3 +83,7 @@ classDiagram
     Pet "1" <--> "0..*" Task : has / belongs to
     Task ..> Task : spawns next occurrence
     Scheduler "1" --> "1" Owner : reads tasks from
+    Owner "1" --> "1" Memory : remembers via
+    Memory "1" --> "0..*" Message : stores
+    PawPalAssistant ..> Owner : reads/updates memory
+    PawPalAssistant ..> Scheduler : reuses for validation

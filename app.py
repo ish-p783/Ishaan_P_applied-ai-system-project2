@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import time
 
 from pawpal_system import Owner, Pet, Task, Scheduler
+from ai_assistant import PawPalAssistant, load_memory
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -22,9 +23,15 @@ with st.expander("What PawPal+ does", expanded=False):
 st.divider()
 
 # Create the Owner ONCE and keep it in the session "vault" so it survives reruns.
+# We load persisted memory so the AI assistant stays personalized across restarts.
 if "owner" not in st.session_state:
-    st.session_state.owner = Owner(name="Jordan")
+    st.session_state.owner = Owner(name="Jordan", memory=load_memory())
 owner = st.session_state.owner
+
+# The AI assistant is created once too (it caches the Claude client internally).
+if "assistant" not in st.session_state:
+    st.session_state.assistant = PawPalAssistant()
+assistant = st.session_state.assistant
 
 # --- Owner ---
 st.subheader("👤 Owner")
@@ -215,3 +222,86 @@ if st.button("Generate schedule"):
         st.warning(
             "No tasks fit in the available time. Add tasks or increase the available minutes."
         )
+
+st.divider()
+
+# --- AI Care Assistant -----------------------------------------------------
+st.subheader("🤖 AI Care Assistant")
+st.caption(
+    "Ask for care ideas, task swaps, food advice, or help when your pet seems "
+    "off. It remembers what you tell it and grounds advice in the care guidelines."
+)
+
+if not assistant.is_configured():
+    st.info(
+        "The assistant needs an Anthropic API key. Copy `.env.example` to `.env`, "
+        "paste your key, and restart. Everything above works without it."
+    )
+
+# Pick which pet the question is about (drives what guidelines get retrieved).
+chat_pet = None
+if owner.pets:
+    chat_pet_name = st.selectbox(
+        "About which pet?", [p.name for p in owner.pets], key="chat_pet"
+    )
+    chat_pet = next(p for p in owner.pets if p.name == chat_pet_name)
+
+# Show the running conversation from memory (so it survives reruns/restarts).
+if owner.memory.messages:
+    st.markdown("**Conversation**")
+    for msg in owner.memory.recent(8):
+        who = "🧑 You" if msg.role == "user" else "🤖 PawPal+"
+        st.markdown(f"{who}: {msg.text}")
+
+# Show anything the assistant has learned about the owner/pets.
+if owner.memory.preferences:
+    with st.expander(f"🧠 What I remember ({len(owner.memory.preferences)})"):
+        for pref in owner.memory.preferences:
+            st.markdown(f"- {pref}")
+
+user_message = st.text_input(
+    "Your message", placeholder="e.g. Mochi seems hyper lately — any ideas?"
+)
+
+if st.button("Send", type="primary"):
+    if not user_message.strip():
+        st.error("Type a message first.")
+    else:
+        with st.spinner("Thinking..."):
+            result = st.session_state.last_chat = assistant.chat(
+                owner, chat_pet, user_message.strip()
+            )
+        st.rerun()  # refresh so the new turn shows in the conversation above
+
+# Render the most recent reply's suggestions (persisted across reruns).
+result = st.session_state.get("last_chat")
+if result is not None and result.ok and result.suggested_tasks:
+    st.markdown("**Suggested tasks** — click to add any to your pet:")
+    if result.revisions:
+        st.caption(
+            f"The assistant revised its plan {result.revisions} time(s) to fit "
+            "your time budget and avoid conflicts."
+        )
+    if result.warnings:
+        st.warning("Some suggestions still have issues: " + "; ".join(result.warnings))
+
+    for i, s in enumerate(result.suggested_tasks):
+        cols = st.columns([4, 1])
+        with cols[0]:
+            st.markdown(
+                f"**{s.description}** — {s.start_time or 'flexible'} · {s.priority} · "
+                f"{s.duration_minutes} min · {s.frequency}  \n_{s.reason}_"
+            )
+        with cols[1]:
+            # An "Add" button per suggestion — human stays in the loop.
+            if chat_pet is not None and st.button("Add", key=f"add_sugg_{i}"):
+                chat_pet.add_task(
+                    Task(
+                        description=s.description,
+                        duration_minutes=s.duration_minutes,
+                        priority=s.priority,
+                        frequency=s.frequency,
+                        start_time=s.start_time,
+                    )
+                )
+                st.success(f"Added '{s.description}' to {chat_pet.name}.")

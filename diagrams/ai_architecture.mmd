@@ -1,0 +1,53 @@
+%% PawPal+ AI system architecture
+%% Shows the AI Care Assistant feature: how a chat message flows through
+%% retrieval (RAG) -> the agentic plan/check/revise loop -> output, where the
+%% human stays in the loop, and where the test suite checks the AI's behavior.
+%% Rendered as a flowchart. Preview at https://mermaid.live
+
+flowchart TD
+    USER["🧑 Owner<br/>types a message + picks a pet"]
+
+    subgraph RETRIEVE["1 · Retriever (RAG) — ai_assistant.py"]
+        KB["retrieve_guidelines()<br/>care_guidelines.md<br/>(breed / health facts)"]
+        MEM["retrieve_memory()<br/>Owner.memory<br/>(past chat + preferences)"]
+    end
+
+    subgraph AGENT["2 · Agent — PawPalAssistant.chat()"]
+        PLAN["PLAN<br/>Claude proposes tasks<br/>(validated JSON via messages.parse)"]
+        CHECK{"CHECK<br/>_validate_suggestions()<br/>time budget + Scheduler.detect_conflicts()"}
+        REVISE["REVISE<br/>hand problem back to Claude<br/>(up to 3 times)"]
+    end
+
+    subgraph OUTPUT["3 · Output"]
+        REPLY["Reply message<br/>+ validated suggested tasks"]
+    end
+
+    HUMAN["🧑 Human-in-the-loop<br/>owner reviews & clicks 'Add'<br/>to accept a suggestion"]
+    STORE["💾 Memory persisted<br/>pawpal_memory.json"]
+    SCHED["Scheduler / Task<br/>(pawpal_system.py)"]
+
+    subgraph TEST["Verification"]
+        TESTS["Test suite<br/>tests/test_ai_assistant.py<br/>retrieval · guardrails · memory · no-key"]
+    end
+
+    %% Main data flow: input -> retrieve -> agent -> output
+    USER -->|"message + pet"| RETRIEVE
+    KB -->|"matched snippets"| PLAN
+    MEM -->|"history + prefs"| PLAN
+    PLAN --> CHECK
+    CHECK -->|"problems found"| REVISE
+    REVISE --> CHECK
+    CHECK -->|"passes"| REPLY
+
+    %% Output back to the human and into storage
+    REPLY --> HUMAN
+    HUMAN -->|"accepted task"| SCHED
+    REPLY -.->|"save turn + learned prefs"| STORE
+    STORE -.->|"loaded next session"| MEM
+
+    %% The guardrail check reuses the real Scheduler rules
+    CHECK -. "reuses" .-> SCHED
+
+    %% Tests exercise the AI-adjacent logic (no API key needed)
+    TESTS -.->|"asserts behavior"| RETRIEVE
+    TESTS -.->|"asserts behavior"| CHECK

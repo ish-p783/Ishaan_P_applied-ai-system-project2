@@ -153,8 +153,9 @@ def test_validation_passes_clean_suggestions():
 
 # --- Graceful degradation (guardrail) --------------------------------------
 def test_chat_without_api_key_degrades_gracefully(monkeypatch, tmp_path):
-    """With no API key, chat() returns ok=False and a helpful message, no crash."""
+    """With no API key and no demo mode, chat() returns ok=False, no crash."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("PAWPAL_DEMO_MODE", raising=False)
     assistant = PawPalAssistant(memory_path=str(tmp_path / "mem.json"))
     owner, pet = _owner_with_budget(60)
 
@@ -163,3 +164,36 @@ def test_chat_without_api_key_degrades_gracefully(monkeypatch, tmp_path):
     assert isinstance(result, ChatResult)
     assert result.ok is False
     assert "api key" in result.message.lower()
+
+
+# --- Offline demo mode (works with no key, no network) ---------------------
+def test_demo_mode_answers_offline_without_api_key(monkeypatch, tmp_path):
+    """Demo mode returns a real, labelled reply with a valid suggestion, no key."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("PAWPAL_DEMO_MODE", "true")
+    assistant = PawPalAssistant(memory_path=str(tmp_path / "mem.json"))
+    owner, pet = _owner_with_budget(60)
+
+    result = assistant.chat(owner, pet, "Rex seems hyper lately, any ideas?")
+
+    assert result.ok is True
+    assert result.demo is True
+    assert result.suggested_tasks, "demo mode should propose at least one task"
+    # The offline suggestion must itself pass the real validator (no problems).
+    assert _validate_suggestions(owner, pet, result.suggested_tasks) == []
+    # The turn is remembered just like a live turn.
+    assert owner.memory.messages[-1].role == "assistant"
+
+
+def test_demo_mode_revises_to_fit_time_budget(monkeypatch, tmp_path):
+    """A tight budget forces the offline loop to revise into a valid plan."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("PAWPAL_DEMO_MODE", "true")
+    assistant = PawPalAssistant(memory_path=str(tmp_path / "mem.json"))
+    owner, pet = _owner_with_budget(5)  # only 5 minutes available
+
+    result = assistant.chat(owner, pet, "he needs a long structured walk")
+
+    assert result.ok is True and result.demo is True
+    # Whatever it proposed must fit the 5-minute budget after revision.
+    assert _validate_suggestions(owner, pet, result.suggested_tasks) == []

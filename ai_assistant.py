@@ -44,6 +44,18 @@ MEMORY_FILE = "pawpal_memory.json" # where per-owner memory is persisted
 GUIDELINES_FILE = "care_guidelines.md"  # the RAG knowledge base
 TOP_K_GUIDELINES = 3               # how many knowledge snippets to retrieve
 
+# When PAWPAL_DEMO_MODE is set (see .env), the assistant answers WITHOUT calling
+# Claude — useful when you have no API credits. The real retrieval (RAG) step and
+# the real plan->check->revise validation loop still run; only the language-model
+# call is replaced by a deterministic stand-in. Replies are clearly labelled.
+DEMO_ENV_VAR = "PAWPAL_DEMO_MODE"
+DEMO_NOTE = "\n\n_(Offline demo reply — no AI credits used. Add credits and unset PAWPAL_DEMO_MODE for the full model.)_"
+# Words that should trigger a "see a vet" nudge in the offline reply.
+_SYMPTOM_WORDS = (
+    "sick", "vomit", "throw up", "not eating", "won't eat", "lethargic",
+    "limp", "blood", "diarrhea", "hurt", "pain", "injured", "seizure", "cough",
+)
+
 # --- Logging ---------------------------------------------------------------
 # Everything the assistant does (retrieval, API calls, validation, failures)
 # is logged both to the console and to a file, so behaviour is auditable.
@@ -97,6 +109,7 @@ class ChatResult:
     warnings: list[str] = field(default_factory=list)  # constraint issues we couldn't fully fix
     revisions: int = 0                                  # how many self-corrections it took
     ok: bool = True                                     # False when the AI call failed
+    demo: bool = False                                  # True when produced offline (no model call)
 
 
 # --- RAG: retrieval ---------------------------------------------------------
@@ -307,6 +320,85 @@ def _validate_suggestions(
     return problems
 
 
+# --- Offline demo responder -------------------------------------------------
+# These build a deterministic reply when PAWPAL_DEMO_MODE is on. They stand in
+# ONLY for the language-model call — retrieval and validation still run for real,
+# so the whole pipeline (RAG -> plan -> check -> revise) is genuinely exercised.
+def _demo_suggestion(
+    pet: Pet | None, user_message: str, guidelines: list[str]
+) -> SuggestedTask:
+    """Pick one sensible care task from the message keywords + top guideline."""
+    msg = user_message.lower()
+    ground = guidelines[0].split(":")[0] if guidelines else "general care guidelines"
+    if any(w in msg for w in ("hyper", "energy", "bored", "restless", "destructive", "anxious")):
+        desc, dur = "Enrichment play session", 20
+    elif any(w in msg for w in ("food", "eat", "diet", "meal", "hungry", "treat", "weight")):
+        desc, dur = "Portion-controlled feeding", 10
+    elif any(w in msg for w in ("walk", "exercise", "outside", "potty")):
+        desc, dur = "Structured walk", 30
+    else:
+        desc, dur = "Daily wellness check-in", 15
+    # Prefer a start time this pet isn't already using; fall back to flexible.
+    used = {t.start_time for t in (pet.pending_tasks() if pet else []) if t.start_time}
+    start = next((c for c in ("09:00", "12:00", "15:00", "18:00") if c not in used), "")
+    return SuggestedTask(
+        description=desc,
+        duration_minutes=dur,
+        priority="medium",
+        start_time=start,
+        frequency="daily",
+        reason=f"Grounded in {ground}.",
+    )
+
+
+def _demo_fix(owner: Owner, suggestions: list[SuggestedTask]) -> None:
+    """Deterministically resolve validator problems, in place.
+
+    Clearing the fixed start_time makes a task 'flexible', which can never clash;
+    capping duration to a per-task share of the budget keeps the total in range.
+    This is the offline stand-in for the model 'revising its own plan'.
+    """
+    for s in suggestions:
+        s.start_time = ""  # flexible time can never conflict
+    if owner.minutes_available:
+        budget_each = max(5, owner.minutes_available // max(1, len(suggestions)))
+        for s in suggestions:
+            s.duration_minutes = min(s.duration_minutes, budget_each)
+
+
+def _demo_message(
+    pet: Pet | None, user_message: str, guidelines: list[str],
+    prefs: list[str], revisions: int,
+) -> str:
+    """Compose the friendly offline reply text, grounded in what was retrieved."""
+    name = pet.name if pet else "your pet"
+    parts = [f"Here's a safe starting idea for {name}, based on the care guidelines."]
+    if guidelines:
+        parts.append(f"I drew on: {guidelines[0].split(':')[0]}.")
+    if prefs:
+        parts.append(f"I kept your {len(prefs)} saved preference(s) in mind.")
+    if revisions:
+        parts.append(
+            f"I adjusted the plan {revisions} time(s) to fit your time budget "
+            "and avoid clashes."
+        )
+    if any(w in user_message.lower() for w in _SYMPTOM_WORDS):
+        parts.append(
+            "Since that could be a health concern, please check with a vet if it "
+            "continues or worsens — I'm not a substitute for one."
+        )
+    parts.append("Add the suggested task below if it looks good.")
+    return " ".join(parts) + DEMO_NOTE
+
+
+def _demo_learned(user_message: str) -> list[str]:
+    """Capture a durable preference offline when the owner clearly states one."""
+    msg = user_message.lower()
+    if any(w in msg for w in ("hate", "dislike", "allergic", "loves", "prefers")):
+        return [user_message.strip()]
+    return []
+
+
 class PawPalAssistant:
     """Wraps the Claude client with retrieval, the agentic loop, and guardrails."""
 
@@ -317,6 +409,46 @@ class PawPalAssistant:
     def is_configured(self) -> bool:
         """True if an API key is available to talk to Claude."""
         return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+    def demo_mode(self) -> bool:
+        """True when offline demo mode is enabled via the PAWPAL_DEMO_MODE env var.
+
+        In demo mode the assistant never calls Claude; it answers with a
+        deterministic stand-in so the app is fully usable without API credits.
+        """
+        return os.environ.get(DEMO_ENV_VAR, "").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+
+    def _demo_turn(
+        self, owner: Owner, pet: Pet | None, user_message: str,
+        guidelines: list[str], prefs: list[str],
+    ) -> tuple[AssistantReply, int, list[str]]:
+        """Run one turn offline: real validate -> deterministic revise loop.
+
+        Mirrors the live plan->check->revise loop, but the 'plan' and each
+        'revise' come from _demo_suggestion/_demo_fix instead of the model.
+        Returns (reply, revisions, unresolved_problems).
+        """
+        suggestions = [_demo_suggestion(pet, user_message, guidelines)]
+
+        revisions = 0
+        problems = _validate_suggestions(owner, pet, suggestions)
+        while problems and revisions < MAX_REVISIONS:
+            revisions += 1
+            logger.info(
+                "Demo revision %d: adjusting suggestion to satisfy constraints.",
+                revisions,
+            )
+            _demo_fix(owner, suggestions)
+            problems = _validate_suggestions(owner, pet, suggestions)
+
+        reply = AssistantReply(
+            message=_demo_message(pet, user_message, guidelines, prefs, revisions),
+            suggested_tasks=suggestions,
+            learned_preferences=_demo_learned(user_message),
+        )
+        return reply, revisions, problems
 
     def _get_client(self):
         """Return a cached Anthropic client, importing the SDK lazily."""
@@ -344,8 +476,10 @@ class PawPalAssistant:
         On any API failure this returns a ChatResult with ok=False and a clear
         message rather than raising, so the UI never crashes.
         """
-        # Guardrail: no key -> explain, don't crash.
-        if not self.is_configured():
+        demo = self.demo_mode()
+
+        # Guardrail: no key AND not in demo mode -> explain, don't crash.
+        if not demo and not self.is_configured():
             return ChatResult(
                 message=(
                     "The AI assistant isn't set up yet. Add your Anthropic API key "
@@ -356,63 +490,73 @@ class PawPalAssistant:
             )
 
         # 1. RETRIEVE context (RAG): knowledge base + this owner's memory.
+        #    This runs in both live and demo mode — retrieval is real either way.
         guidelines = retrieve_guidelines(pet, user_message)
         recent, prefs = retrieve_memory(owner)
 
-        context = (
-            f"Owner: {owner.name}. Minutes available today: {owner.minutes_available}.\n"
-            f"Pet profile: {_pet_profile(pet)}\n"
-            f"Care guidelines (retrieved):\n- "
-            + ("\n- ".join(guidelines) if guidelines else "(none matched)")
-            + "\nRemembered preferences:\n- "
-            + ("\n- ".join(prefs) if prefs else "(none yet)")
-            + "\nRecent conversation:\n"
-            + ("\n".join(recent) if recent else "(this is the first message)")
-        )
-
-        messages = [
-            {"role": "user", "content": f"{context}\n\nOwner says: {user_message}"}
-        ]
-
-        # 2. PLAN: first attempt.
-        try:
-            reply = self._complete(messages)
-        except Exception as err:  # noqa: BLE001 - any SDK/API error is surfaced safely
-            logger.error("AI call failed: %s", err)
-            return ChatResult(
-                message=(
-                    "Sorry — I couldn't reach the AI service just now. "
-                    "Please check your connection/API key and try again."
-                ),
-                ok=False,
+        # 2 + 3. PLAN -> CHECK -> REVISE.
+        if demo:
+            # Offline path: deterministic stand-in for the model, same loop shape.
+            reply, revisions, problems = self._demo_turn(
+                owner, pet, user_message, guidelines, prefs
+            )
+        else:
+            context = (
+                f"Owner: {owner.name}. Minutes available today: {owner.minutes_available}.\n"
+                f"Pet profile: {_pet_profile(pet)}\n"
+                f"Care guidelines (retrieved):\n- "
+                + ("\n- ".join(guidelines) if guidelines else "(none matched)")
+                + "\nRemembered preferences:\n- "
+                + ("\n- ".join(prefs) if prefs else "(none yet)")
+                + "\nRecent conversation:\n"
+                + ("\n".join(recent) if recent else "(this is the first message)")
             )
 
-        # 3. CHECK -> REVISE loop: fix the AI's own plan against real constraints.
-        revisions = 0
-        problems = _validate_suggestions(owner, pet, reply.suggested_tasks)
-        while problems and revisions < MAX_REVISIONS:
-            revisions += 1
-            logger.info("Revision %d: asking the model to fix its suggestions.", revisions)
-            messages.append(
-                {"role": "assistant", "content": reply.model_dump_json()}
-            )
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "Your suggested_tasks failed these checks:\n- "
-                        + "\n- ".join(problems)
-                        + "\nRevise suggested_tasks so they fit the time budget and "
-                        "have no time clashes. Keep your message friendly and brief."
-                    ),
-                }
-            )
+            messages = [
+                {"role": "user", "content": f"{context}\n\nOwner says: {user_message}"}
+            ]
+
+            # 2. PLAN: first attempt.
             try:
                 reply = self._complete(messages)
-            except Exception as err:  # noqa: BLE001
-                logger.error("AI revision call failed: %s", err)
-                break
+            except Exception as err:  # noqa: BLE001 - any SDK/API error is surfaced safely
+                logger.error("AI call failed: %s", err)
+                return ChatResult(
+                    message=(
+                        "Sorry — I couldn't reach the AI service just now. "
+                        "Please check your connection/API key and try again. "
+                        "(Tip: set PAWPAL_DEMO_MODE=true in .env to run offline "
+                        "without API credits.)"
+                    ),
+                    ok=False,
+                )
+
+            # 3. CHECK -> REVISE loop: fix the AI's own plan against real constraints.
+            revisions = 0
             problems = _validate_suggestions(owner, pet, reply.suggested_tasks)
+            while problems and revisions < MAX_REVISIONS:
+                revisions += 1
+                logger.info("Revision %d: asking the model to fix its suggestions.", revisions)
+                messages.append(
+                    {"role": "assistant", "content": reply.model_dump_json()}
+                )
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Your suggested_tasks failed these checks:\n- "
+                            + "\n- ".join(problems)
+                            + "\nRevise suggested_tasks so they fit the time budget and "
+                            "have no time clashes. Keep your message friendly and brief."
+                        ),
+                    }
+                )
+                try:
+                    reply = self._complete(messages)
+                except Exception as err:  # noqa: BLE001
+                    logger.error("AI revision call failed: %s", err)
+                    break
+                problems = _validate_suggestions(owner, pet, reply.suggested_tasks)
 
         # 4. REMEMBER: save this turn + any learned preferences, then persist.
         stamp = datetime.now().isoformat(timespec="seconds")
@@ -428,4 +572,5 @@ class PawPalAssistant:
             warnings=problems,  # any issues still unresolved after MAX_REVISIONS
             revisions=revisions,
             ok=True,
+            demo=demo,
         )

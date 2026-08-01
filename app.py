@@ -232,7 +232,14 @@ st.caption(
     "off. It remembers what you tell it and grounds advice in the care guidelines."
 )
 
-if not assistant.is_configured():
+if assistant.demo_mode():
+    st.info(
+        "🟡 **Demo mode is on.** The assistant replies with offline sample "
+        "responses — no API credits are used. Retrieval (RAG) and the "
+        "plan→check→revise validation still run for real. To use the live model, "
+        "remove `PAWPAL_DEMO_MODE` from `.env` and add API credits."
+    )
+elif not assistant.is_configured():
     st.info(
         "The assistant needs an Anthropic API key. Copy `.env.example` to `.env`, "
         "paste your key, and restart. Everything above works without it."

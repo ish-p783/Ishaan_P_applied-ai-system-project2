@@ -19,3 +19,84 @@
 2026-07-26 15:26:05,353 [INFO] Retrieved 1 guideline snippet(s) for query.
 2026-07-26 15:26:05,353 [INFO] Loaded 1 memory message(s) and 1 preference(s).
 2026-07-26 15:26:05,353 [INFO] Validation found 1 problem(s) in suggestions.
+2026-07-29 14:20:56,186 [INFO] Retrieved 0 guideline snippet(s) for query.
+2026-07-29 14:20:56,187 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:20:59,330 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:21:41,365 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:21:41,365 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:21:41,365 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:21:44,192 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:21:44,193 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:21:44,193 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:21:45,947 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:21:45,947 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:21:45,947 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:22:08,086 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:22:08,087 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:22:08,087 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:22:28,128 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:22:28,129 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:22:28,129 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:23:22,002 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:23:22,004 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:23:22,022 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:23:24,105 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:23:24,106 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:23:24,106 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:23:24,308 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:23:24,309 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:23:24,309 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:23:24,502 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:23:24,502 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:23:24,502 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:23:24,687 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:23:24,687 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:23:24,687 [ERROR] AI call failed: '_SpecialForm' object has no attribute 'replace'
+2026-07-29 14:33:19,695 [INFO] Retrieved 1 guideline snippet(s) for query.
+2026-07-29 14:33:19,698 [INFO] Retrieved 2 guideline snippet(s) for query.
+2026-07-29 14:33:19,699 [WARNING] Guidelines file does_not_exist.md not found; skipping retrieval.
+2026-07-29 14:33:19,733 [INFO] Validation found 1 problem(s) in suggestions.
+2026-07-29 14:33:19,734 [INFO] Validation found 1 problem(s) in suggestions.
+2026-07-29 14:33:31,287 [INFO] Retrieved 1 guideline snippet(s) for query.
+2026-07-29 14:33:31,287 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:33:34,279 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWuc6xW1xbnH8oWKhDdu'}
+2026-07-29 14:38:29,052 [INFO] Retrieved 1 guideline snippet(s) for query.
+2026-07-29 14:38:29,052 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:38:32,467 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWuz5nRSZj3SJm78mf7v'}
+2026-07-29 14:44:20,239 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:44:20,241 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:44:23,306 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvRxY5ErU8eSkxtRr34'}
+2026-07-29 14:44:30,915 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:44:30,916 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:44:32,646 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvSePT6YYLPg6p5qD8s'}
+2026-07-29 14:50:58,079 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:50:58,083 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:50:58,741 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvw76LPmzzM4oUnHnoo'}
+2026-07-29 14:51:00,833 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:51:00,833 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:51:00,988 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvwH1PWJM4SnrgHnoqD'}
+2026-07-29 14:51:01,981 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:51:01,981 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:51:02,113 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvwMprNGkU4nBGKGtJj'}
+2026-07-29 14:51:05,988 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:51:05,989 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:51:06,110 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvwevWQEefgv8yBi1s9'}
+2026-07-29 14:51:06,438 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-07-29 14:51:06,438 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 14:51:06,559 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdWvwgqqxhJ7mxkkQmWQM'}
+2026-07-29 17:11:26,561 [INFO] Retrieved 0 guideline snippet(s) for query.
+2026-07-29 17:11:26,562 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-07-29 17:11:30,953 [ERROR] AI call failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CdX7ehCEXHMWtRMQZxPKm'}
+2026-08-01 16:30:20,611 [INFO] Retrieved 1 guideline snippet(s) for query.
+2026-08-01 16:30:20,617 [INFO] Retrieved 2 guideline snippet(s) for query.
+2026-08-01 16:30:20,619 [WARNING] Guidelines file does_not_exist.md not found; skipping retrieval.
+2026-08-01 16:30:20,679 [INFO] Validation found 1 problem(s) in suggestions.
+2026-08-01 16:30:20,682 [INFO] Validation found 1 problem(s) in suggestions.
+2026-08-01 16:30:20,698 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-08-01 16:30:20,698 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-08-01 16:30:20,708 [INFO] Retrieved 3 guideline snippet(s) for query.
+2026-08-01 16:30:20,709 [INFO] Loaded 0 memory message(s) and 0 preference(s).
+2026-08-01 16:30:20,709 [INFO] Validation found 1 problem(s) in suggestions.
+2026-08-01 16:30:20,709 [INFO] Demo revision 1: adjusting suggestion to satisfy constraints.
+2026-08-01 16:30:32,400 [INFO] Retrieved 1 guideline snippet(s) for query.
+2026-08-01 16:30:32,401 [INFO] Loaded 0 memory message(s) and 0 preference(s).

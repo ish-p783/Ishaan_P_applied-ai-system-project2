@@ -444,4 +444,3 @@ honest, and guardrails so it fails safely. The full graded responsible-AI
 reflection — how I collaborated with AI, one helpful and one flawed AI
 suggestion, and the system's limitations — is in [`model_card.md`](model_card.md).
 
-
